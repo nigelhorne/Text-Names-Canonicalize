@@ -3,29 +3,52 @@ package Text::Names::Canonicalize::Rules;
 use strict;
 use warnings;
 use Carp qw(croak);
+use YAML::XS qw(LoadFile);
+use File::Spec;
+use File::Basename qw(dirname);
 
-# Simple in-memory registry:
-#   $REGISTRY{locale}{ruleset} = { ...rules... }
-my %REGISTRY;
+# ----------------------------------------------------------------------
+# Load a YAML ruleset if available.
+# YAML files live in:
+#   lib/Text/Names/Canonicalize/Rules/<locale>.yaml
+# ----------------------------------------------------------------------
+sub _load_yaml_rules {
+    my ($locale) = @_;
 
-# Register a ruleset for a locale.
-sub register {
-    my ($class, $locale, $ruleset, $rules) = @_;
-    croak "register() requires locale, ruleset, rules hashref"
-        unless $locale && $ruleset && ref $rules eq 'HASH';
+# __FILE__ = .../Text/Names/Canonicalize/Rules.pm
+# YAML lives in .../Text/Names/Canonicalize/Rules/*.yaml
 
-    $REGISTRY{$locale}{$ruleset} = $rules;
+my $base = File::Spec->catdir( dirname(__FILE__), 'Rules' );
+my $file = File::Spec->catfile( $base, "$locale.yaml" );
+
+    return unless -e $file;
+
+    my $yaml = eval { LoadFile($file) };
+    croak "Failed to load YAML rules for $locale: $@" if $@;
+
+    croak "YAML rules for $locale must be a hash" unless ref $yaml eq 'HASH';
+
+    return $yaml;
 }
 
-# Fetch a ruleset for a locale.
+# ----------------------------------------------------------------------
+# Fetch a ruleset:
+#   1. Try YAML
+#   2. Fall back to Perl registry
+# ----------------------------------------------------------------------
 sub get {
     my ($class, $locale, $ruleset) = @_;
     $ruleset ||= 'default';
 
-    my $rules = $REGISTRY{$locale}{$ruleset}
-        or croak "No ruleset '$ruleset' for locale '$locale'";
+    # Load YAML ruleset
+    my $yaml = _load_yaml_rules($locale)
+        or croak "No YAML rules found for locale '$locale'";
+
+    my $rules = $yaml->{$ruleset}
+        or croak "No ruleset '$ruleset' in YAML for locale '$locale'";
 
     return $rules;
 }
+
 
 1;

@@ -7,6 +7,8 @@ use Unicode::Normalize qw(NFKC NFD NFC);
 use feature 'unicode_strings';
 use charnames qw(:full);
 
+use Text::Names::Canonicalize::Rules;
+
 our @EXPORT_OK = qw(
 	canonicalize_name
 	canonicalize_name_struct
@@ -14,84 +16,6 @@ our @EXPORT_OK = qw(
 
 # Default suffixes used when no rules are provided
 my %DEFAULT_SUFFIX = map { $_ => 1 } qw(jr sr ii iii iv);
-
-BEGIN {
-	require Text::Names::Canonicalize::Rules;
-
-	# en_GB ruleset
-	Text::Names::Canonicalize::Rules->register(
-		'en_GB',
-		'default',
-		{
-			particles	   => [],
-			suffixes		=> [qw(jr sr ii iii iv)],
-			strip_titles	=> [qw(mr mrs miss ms sir dame dr prof lord lady)],
-			hyphen_policy   => 'preserve',
-			surname_strategy => 'last_token_with_particles',
-		}
-	);
-
-	# ------------------------------------------------------------
-	# en_US ruleset
-	# ------------------------------------------------------------
-	# Differences from en_GB:
-	#   - More suffixes (esq, md, phd)
-	#   - American titles (rev, hon)
-	#   - Still no particles
-	#   - Same surname strategy
-	# ------------------------------------------------------------
-	Text::Names::Canonicalize::Rules->register(
-		'en_US',
-		'default',
-		{
-			particles	   => [],
-			suffixes		=> [qw(jr sr ii iii iv esq md phd)],
-			strip_titles	=> [qw(mr mrs miss ms dr prof rev hon)],
-			hyphen_policy   => 'preserve',
-			surname_strategy => 'last_token_with_particles',
-		}
-	);
-	# ------------------------------------------------------------
-	# fr_FR ruleset
-	# ------------------------------------------------------------
-	# French surnames frequently include particles:
-	#   de, du, des, le, la, d', l'
-	#
-	# These particles attach to the surname and must be preserved.
-	#
-	# Examples:
-	#   Jean de Gaulle		→ surname = ["de", "gaulle"]
-	#   Charles de la Tour	→ surname = ["de", "la", "tour"]
-	#   Jean d'Ormesson	   → surname = ["d'", "ormesson"]
-	#   Pierre L'Enfant	   → surname = ["l'", "enfant"]
-	#
-	# Hyphens are preserved (Jean-Luc, Marie-Claire).
-	#
-	# Suffixes are extremely rare in French names, so we keep the
-	# minimal English-style list for compatibility.
-	# ------------------------------------------------------------
-	Text::Names::Canonicalize::Rules->register(
-		'fr_FR',
-		'default',
-		{
-			particles => [
-				'de', 'du', 'des',
-				'le', 'la',
-				"d'", "l'",
-			],
-
-			suffixes => [qw(jr sr ii iii iv)],
-
-			strip_titles => [
-				qw(mr mme mlle m me dr prof),
-			],
-
-			hyphen_policy   => 'preserve',
-			surname_strategy => 'last_token_with_particles',
-		}
-	);
-	
-}
 
 # Returns a plain canonical string.
 sub canonicalize_name {
