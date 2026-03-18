@@ -7,17 +7,21 @@
 #     These must be preserved and treated as part of the surname.
 #
 #   - Examples:
-#         Jean de Gaulle        → surname = ["de", "gaulle"]
-#         Charles de la Tour    → surname = ["de", "la", "tour"]
-#         Jean d'Ormesson       → surname = ["d'", "ormesson"]
-#         Pierre L'Enfant       → surname = ["l'", "enfant"]
+#         Jean de Gaulle        → ["de", "gaulle"]
+#         Charles de la Tour    → ["de", "la", "tour"]
+#         Jean d'Ormesson       → ["d'", "ormesson"]
+#         Pierre L'Enfant       → ["l'", "enfant"]
 #
-#   - Hyphenated given names (Jean-Luc, Marie-Claire) are extremely common.
-#   - Suffixes are rare in French naming; we keep the minimal English list
-#     for compatibility.
+#   - Hyphenated given names (Jean‑Luc, Marie‑Claire) are common.
+#   - Suffixes are rare in French naming; we keep the minimal English list.
 #   - Titles such as "M.", "Mme", "Mlle" should be stripped.
+#
+# This ruleset inherits from en_GB and overrides only the differences.
 
 default:
+
+  # Inherit UK rules (hyphens, surname strategy, suffixes, etc.)
+  include: en_GB
 
   # French surname particles.
   particles:
@@ -29,15 +33,7 @@ default:
     - "d'"
     - "l'"
 
-  # Minimal suffix list for compatibility.
-  suffixes:
-    - jr
-    - sr
-    - ii
-    - iii
-    - iv
-
-  # Titles to strip.
+  # French titles to strip.
   strip_titles:
     - mr
     - mme
@@ -46,9 +42,3 @@ default:
     - me
     - dr
     - prof
-
-  # Preserve hyphens in given names and surnames.
-  hyphen_policy: preserve
-
-  # French surnames are the last token plus trailing particles.
-  surname_strategy: last_token_with_particles
