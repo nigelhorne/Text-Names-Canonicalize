@@ -444,8 +444,6 @@ Nigel Horne, C<< <njh at nigelhorne.com> >>
 
 =head1 SEE ALSO
 
-L<Text::Names::Canonicalize>
-
 =head1 REPOSITORY
 
 L<https://github.com/nigelhorne/Text-Names-Canonicalize>

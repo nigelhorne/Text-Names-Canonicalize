@@ -183,8 +183,6 @@ Nigel Horne, `<njh at nigelhorne.com>`
 
 # SEE ALSO
 
-[Text::Names::Canonicalize](https://metacpan.org/pod/Text%3A%3ANames%3A%3ACanonicalize)
-
 # REPOSITORY
 
 [https://github.com/nigelhorne/Text-Names-Canonicalize](https://github.com/nigelhorne/Text-Names-Canonicalize)
