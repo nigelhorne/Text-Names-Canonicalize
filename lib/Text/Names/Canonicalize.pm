@@ -12,23 +12,47 @@ our @EXPORT_OK = qw(
 	canonicalize_name_struct
 );
 
-my %SUFFIX = map { $_ => 1 } qw(jr sr ii iii iv);
+# Default suffixes used when no rules are provided
+my %DEFAULT_SUFFIX = map { $_ => 1 } qw(jr sr ii iii iv);
 
 BEGIN {
-	require Text::Names::Canonicalize::Rules;
+    require Text::Names::Canonicalize::Rules;
 
-	Text::Names::Canonicalize::Rules->register(
-		'en_GB',
-		'default',
-{
-    particles    => [],
-    suffixes     => [qw(jr sr ii iii iv)],
-    strip_titles => [qw(mr mrs miss ms sir dame dr prof lord lady)],
-    hyphen_policy => 'preserve',
-    surname_strategy => 'last_token_with_particles',
+    # en_GB ruleset (already present)
+    Text::Names::Canonicalize::Rules->register(
+        'en_GB',
+        'default',
+        {
+            particles       => [],
+            suffixes        => [qw(jr sr ii iii iv)],
+            strip_titles    => [qw(mr mrs miss ms sir dame dr prof lord lady)],
+            hyphen_policy   => 'preserve',
+            surname_strategy => 'last_token_with_particles',
+        }
+    );
+
+    # ------------------------------------------------------------
+    # en_US ruleset
+    # ------------------------------------------------------------
+    # Differences from en_GB:
+    #   - More suffixes (esq, md, phd)
+    #   - American titles (rev, hon)
+    #   - Still no particles
+    #   - Same surname strategy
+    # ------------------------------------------------------------
+    Text::Names::Canonicalize::Rules->register(
+        'en_US',
+        'default',
+        {
+            particles       => [],
+            suffixes        => [qw(jr sr ii iii iv esq md phd)],
+            strip_titles    => [qw(mr mrs miss ms dr prof rev hon)],
+            hyphen_policy   => 'preserve',
+            surname_strategy => 'last_token_with_particles',
+        }
+    );
 }
-	);
-}
+
 
 # Returns a plain canonical string.
 sub canonicalize_name {
@@ -57,7 +81,7 @@ sub canonicalize_name_struct {
 	my $tokens = _tokenize($norm);
 
 	# 4. Classify
-	my $classified = _classify_tokens($tokens);
+	my $classified = _classify_tokens($tokens, $rules);
 
 	# 5. Extract parts
 	my $parts = _extract_parts($classified, $rules);
@@ -95,27 +119,35 @@ sub _tokenize {
 }
 
 sub _classify_tokens {
-	my ($tokens) = @_;
+    my ($tokens, $rules) = @_;
 
-	my @types;
+    my %suffix = %DEFAULT_SUFFIX;
 
-	for my $t (@$tokens) {
-		if ($t =~ /^[a-z]$/) {
-			push @types, "initial";
-		}
-		elsif ($SUFFIX{$t}) {
-			push @types, "suffix";
-		}
-		else {
-			push @types, "word";
-		}
-	}
+    # If rules are provided, override suffix list from ruleset
+    if ($rules && $rules->{suffixes}) {
+        %suffix = map { $_ => 1 } @{ $rules->{suffixes} };
+    }
 
-	return {
-		tokens => $tokens,
-		types  => \@types,
-	};
+    my @types;
+
+    for my $t (@$tokens) {
+        if ($t =~ /^[a-z]$/) {
+            push @types, "initial";
+        }
+        elsif ($suffix{$t}) {
+            push @types, "suffix";
+        }
+        else {
+            push @types, "word";
+        }
+    }
+
+    return {
+        tokens => $tokens,
+        types  => \@types,
+    };
 }
+
 
 sub _extract_parts {
     my ($classified, $rules) = @_;
