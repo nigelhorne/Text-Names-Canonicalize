@@ -16,43 +16,82 @@ our @EXPORT_OK = qw(
 my %DEFAULT_SUFFIX = map { $_ => 1 } qw(jr sr ii iii iv);
 
 BEGIN {
-    require Text::Names::Canonicalize::Rules;
+	require Text::Names::Canonicalize::Rules;
 
-    # en_GB ruleset (already present)
-    Text::Names::Canonicalize::Rules->register(
-        'en_GB',
-        'default',
-        {
-            particles       => [],
-            suffixes        => [qw(jr sr ii iii iv)],
-            strip_titles    => [qw(mr mrs miss ms sir dame dr prof lord lady)],
-            hyphen_policy   => 'preserve',
-            surname_strategy => 'last_token_with_particles',
-        }
-    );
+	# en_GB ruleset
+	Text::Names::Canonicalize::Rules->register(
+		'en_GB',
+		'default',
+		{
+			particles	   => [],
+			suffixes		=> [qw(jr sr ii iii iv)],
+			strip_titles	=> [qw(mr mrs miss ms sir dame dr prof lord lady)],
+			hyphen_policy   => 'preserve',
+			surname_strategy => 'last_token_with_particles',
+		}
+	);
 
-    # ------------------------------------------------------------
-    # en_US ruleset
-    # ------------------------------------------------------------
-    # Differences from en_GB:
-    #   - More suffixes (esq, md, phd)
-    #   - American titles (rev, hon)
-    #   - Still no particles
-    #   - Same surname strategy
-    # ------------------------------------------------------------
-    Text::Names::Canonicalize::Rules->register(
-        'en_US',
-        'default',
-        {
-            particles       => [],
-            suffixes        => [qw(jr sr ii iii iv esq md phd)],
-            strip_titles    => [qw(mr mrs miss ms dr prof rev hon)],
-            hyphen_policy   => 'preserve',
-            surname_strategy => 'last_token_with_particles',
-        }
-    );
+	# ------------------------------------------------------------
+	# en_US ruleset
+	# ------------------------------------------------------------
+	# Differences from en_GB:
+	#   - More suffixes (esq, md, phd)
+	#   - American titles (rev, hon)
+	#   - Still no particles
+	#   - Same surname strategy
+	# ------------------------------------------------------------
+	Text::Names::Canonicalize::Rules->register(
+		'en_US',
+		'default',
+		{
+			particles	   => [],
+			suffixes		=> [qw(jr sr ii iii iv esq md phd)],
+			strip_titles	=> [qw(mr mrs miss ms dr prof rev hon)],
+			hyphen_policy   => 'preserve',
+			surname_strategy => 'last_token_with_particles',
+		}
+	);
+	# ------------------------------------------------------------
+	# fr_FR ruleset
+	# ------------------------------------------------------------
+	# French surnames frequently include particles:
+	#   de, du, des, le, la, d', l'
+	#
+	# These particles attach to the surname and must be preserved.
+	#
+	# Examples:
+	#   Jean de Gaulle		→ surname = ["de", "gaulle"]
+	#   Charles de la Tour	→ surname = ["de", "la", "tour"]
+	#   Jean d'Ormesson	   → surname = ["d'", "ormesson"]
+	#   Pierre L'Enfant	   → surname = ["l'", "enfant"]
+	#
+	# Hyphens are preserved (Jean-Luc, Marie-Claire).
+	#
+	# Suffixes are extremely rare in French names, so we keep the
+	# minimal English-style list for compatibility.
+	# ------------------------------------------------------------
+	Text::Names::Canonicalize::Rules->register(
+		'fr_FR',
+		'default',
+		{
+			particles => [
+				'de', 'du', 'des',
+				'le', 'la',
+				"d'", "l'",
+			],
+
+			suffixes => [qw(jr sr ii iii iv)],
+
+			strip_titles => [
+				qw(mr mme mlle m me dr prof),
+			],
+
+			hyphen_policy   => 'preserve',
+			surname_strategy => 'last_token_with_particles',
+		}
+	);
+	
 }
-
 
 # Returns a plain canonical string.
 sub canonicalize_name {
@@ -98,117 +137,120 @@ sub canonicalize_name_struct {
 sub _tokenize {
 	my ($norm) = @_;
 
+	# Normalize apostrophes
+	$norm =~ s/[\N{LEFT SINGLE QUOTATION MARK}\N{RIGHT SINGLE QUOTATION MARK}]/'/g;
+
+	# Normalize dash-like characters
+	$norm =~ s/\p{Dash}/-/g;
+
+	# Split French prefix particles BEFORE splitting on spaces.
+	# d'Ormesson → d' Ormesson
+	# l'Enfant   → l' Enfant
+	$norm =~ s/\b(d'|l')(\p{Letter}+)/$1 $2/gi;
+
 	my @t = split / /, $norm;
 
 	for (@t) {
-		# strip leading/trailing punctuation
-		s/^\pP+//;
-		s/\pP+$//;
-
-		# normalize apostrophes: curly quotes → ASCII '
-		s/[\N{LEFT SINGLE QUOTATION MARK}\N{RIGHT SINGLE QUOTATION MARK}]/'/g;
-
-		# normalize all dash-like characters to ASCII hyphen
-		s/\p{Dash}/-/g;
-
-		# trailing period (initials)
-		s/\.$//;
+		s/^\pP+//;				 # leading punctuation
+		s/[\pP&&[^']]+$//;		 # trailing punctuation except apostrophe
+		s/\.$//;				   # trailing period (initials)
 	}
 
 	return [ grep { length } @t ];
 }
 
+
+
 sub _classify_tokens {
-    my ($tokens, $rules) = @_;
+	my ($tokens, $rules) = @_;
 
-    my %suffix = %DEFAULT_SUFFIX;
+	my %suffix = %DEFAULT_SUFFIX;
 
-    # If rules are provided, override suffix list from ruleset
-    if ($rules && $rules->{suffixes}) {
-        %suffix = map { $_ => 1 } @{ $rules->{suffixes} };
-    }
+	# If rules are provided, override suffix list from ruleset
+	if ($rules && $rules->{suffixes}) {
+		%suffix = map { $_ => 1 } @{ $rules->{suffixes} };
+	}
 
-    my @types;
+	my @types;
 
-    for my $t (@$tokens) {
-        if ($t =~ /^[a-z]$/) {
-            push @types, "initial";
-        }
-        elsif ($suffix{$t}) {
-            push @types, "suffix";
-        }
-        else {
-            push @types, "word";
-        }
-    }
+	for my $t (@$tokens) {
+		if ($t =~ /^[a-z]$/) {
+			push @types, "initial";
+		}
+		elsif ($suffix{$t}) {
+			push @types, "suffix";
+		}
+		else {
+			push @types, "word";
+		}
+	}
 
-    return {
-        tokens => $tokens,
-        types  => \@types,
-    };
+	return {
+		tokens => $tokens,
+		types => \@types,
+	};
 }
 
-
 sub _extract_parts {
-    my ($classified, $rules) = @_;
+	my ($classified, $rules) = @_;
 
-    my @tokens = @{ $classified->{tokens} };
-    my @types  = @{ $classified->{types} };
+	my @tokens = @{ $classified->{tokens} };
+	my @types = @{ $classified->{types} };
 
-    my %particle = map { $_ => 1 } @{ $rules->{particles} || [] };
+	my %particle = map { $_ => 1 } @{ $rules->{particles} || [] };
 
-    my (@given, @middle, @surname, @suffix);
+	my (@given, @middle, @surname, @suffix);
 
-    # 1. Peel off suffixes
-    while (@types && $types[-1] eq 'suffix') {
-        unshift @suffix, pop @tokens;
-        pop @types;
-    }
+	# 1. Peel off suffixes
+	while (@types && $types[-1] eq 'suffix') {
+		unshift @suffix, pop @tokens;
+		pop @types;
+	}
 
-    # If nothing left, return empty structure
-    return {
-        given   => [],
-        middle  => [],
-        surname => [],
-        suffix  => \@suffix,
-    } unless @tokens;
+	# If nothing left, return empty structure
+	return {
+		given   => [],
+		middle  => [],
+		surname => [],
+		suffix  => \@suffix,
+	} unless @tokens;
 
-    # 2. Locale-aware surname extraction
-    if ($rules->{surname_strategy} && $rules->{surname_strategy} eq 'last_token_with_particles') {
+	# 2. Locale-aware surname extraction
+	if ($rules->{surname_strategy} && $rules->{surname_strategy} eq 'last_token_with_particles') {
 
-        # Always take the last token as surname root
-        my $root = pop @tokens;
-        pop @types;
-        unshift @surname, $root;
+		# Always take the last token as surname root
+		my $root = pop @tokens;
+		pop @types;
+		unshift @surname, $root;
 
-        # Pull in particles from the end backwards
-        while (@tokens && $particle{$tokens[-1]}) {
-            unshift @surname, pop @tokens;
-            pop @types;
-        }
+		# Pull in particles from the end backwards
+		while (@tokens && $particle{$tokens[-1]}) {
+			unshift @surname, pop @tokens;
+			pop @types;
+		}
 
-    } else {
-        # Fallback: simple last token
-        my $root = pop @tokens;
-        pop @types;
-        unshift @surname, $root;
-    }
+	} else {
+		# Fallback: simple last token
+		my $root = pop @tokens;
+		pop @types;
+		unshift @surname, $root;
+	}
 
-    # 3. Given = first token (if any)
-    if (@tokens) {
-        push @given, shift @tokens;
-        shift @types;
-    }
+	# 3. Given = first token (if any)
+	if (@tokens) {
+		push @given, shift @tokens;
+		shift @types;
+	}
 
-    # 4. Middle = everything else
-    @middle = @tokens;
+	# 4. Middle = everything else
+	@middle = @tokens;
 
-    return {
-        given   => \@given,
-        middle  => \@middle,
-        surname => \@surname,
-        suffix  => \@suffix,
-    };
+	return {
+		given   => \@given,
+		middle  => \@middle,
+		surname => \@surname,
+		suffix  => \@suffix,
+	};
 }
 
 sub _normalize_string {
