@@ -7,139 +7,186 @@ use Unicode::Normalize qw(NFKC NFD NFC);
 use feature 'unicode_strings';
 use charnames qw(:full);
 
-our @EXPORT_OK = qw(canonicalize_name);
+our @EXPORT_OK = qw(
+	canonicalize_name
+	canonicalize_name_struct
+);
+
 
 my %SUFFIX = map { $_ => 1 } qw(jr sr ii iii iv);
 
-sub canonicalize_name {
-    my ($name, %opts) = @_;
+BEGIN {
+	require Text::Names::Canonicalize::Rules;
 
-    # 1. Coerce to defined string
-    $name = '' unless defined $name;
-
-    # 2. Unicode normalization
-    my $norm = NFKC($name);
-
-    # 3. Normalize whitespace
-    $norm =~ s/\s+/ /g;
-    $norm =~ s/^\s+//;
-    $norm =~ s/\s+$//;
-
-    # 4. Normalize punctuation (very conservative for now)
-    $norm =~ s/[.,]+$//;
-    $norm =~ s/^[.,]+//;
-
-    # 5. Lowercase
-    $norm = lc $norm;
-
-# 6. Optional: strip diacritics by removing combining marks
-if ($opts{strip_diacritics}) {
-    # Ensure we are working with decoded characters
-    # (no-op if already decoded)
-    $norm = decode('UTF-8', $norm) unless utf8::is_utf8($norm);
-
-    # Decompose: é → e + ◌́
-    my $decomp = NFD($norm);
-
-    # Remove all combining marks
-    $decomp =~ s/\pM//g;
-
-    # Recompose (optional but cleaner)
-    $norm = NFC($decomp);
+	Text::Names::Canonicalize::Rules->register(
+		'en_GB',
+		'default',
+		{
+			particles => [],
+			suffixes  => [qw(jr sr ii iii iv)],
+			strip_titles => [qw(mr mrs miss ms sir dame dr prof lord lady)],
+			hyphen_policy => 'preserve',
+		}
+	);
 }
-    
-	return wantarray ? ($norm, _tokenize($norm)) : $norm;
+
+# Returns a plain canonical string.
+sub canonicalize_name {
+	my ($name, %opts) = @_;
+	return _normalize_string($name, %opts);
+}
+
+sub canonicalize_name_struct {
+	my ($name, %opts) = @_;
+
+	my $locale  = $opts{locale}  || 'en_GB';
+	my $ruleset = $opts{ruleset} || 'default';
+
+	my $rules = Text::Names::Canonicalize::Rules->get($locale, $ruleset);
+
+	# 1. Strip titles (using raw input)
+	if (my $titles = $rules->{strip_titles}) {
+		my $re = join '|', map { quotemeta } @$titles;
+		$name =~ s/\b(?:$re)\b\.?//ig if defined $name;
+	}
+
+	# 2. Normalize
+	my $norm = _normalize_string($name, %opts);
+
+	# 3. Tokenize
+	my $tokens = _tokenize($norm);
+
+	# 4. Classify
+	my $classified = _classify_tokens($tokens);
+
+	# 5. Extract parts (still locale-neutral)
+	my $parts = _extract_parts($classified);
+
+	return {
+		original  => (defined $name ? $name : ''),
+		locale	=> $locale,
+		ruleset   => $ruleset,
+		canonical => join(' ', @$tokens),
+		parts	 => $parts,
+	};
 }
 
 sub _tokenize {
-    my ($norm) = @_;
+	my ($norm) = @_;
 
-    my @t = split / /, $norm;
+	my @t = split / /, $norm;
 
-    for (@t) {
-        # strip leading/trailing punctuation
-        s/^\pP+//;
-        s/\pP+$//;
+	for (@t) {
+		# strip leading/trailing punctuation
+		s/^\pP+//;
+		s/\pP+$//;
 
-        # normalize apostrophes: curly quotes → ASCII '
-        s/[\N{LEFT SINGLE QUOTATION MARK}\N{RIGHT SINGLE QUOTATION MARK}]/'/g;
+		# normalize apostrophes: curly quotes → ASCII '
+		s/[\N{LEFT SINGLE QUOTATION MARK}\N{RIGHT SINGLE QUOTATION MARK}]/'/g;
 
-        # normalize all dash-like characters to ASCII hyphen
-        s/\p{Dash}/-/g;
+		# normalize all dash-like characters to ASCII hyphen
+		s/\p{Dash}/-/g;
 
-        # trailing period (initials)
-        s/\.$//;
-    }
+		# trailing period (initials)
+		s/\.$//;
+	}
 
-    return [ grep { length } @t ];
+	return [ grep { length } @t ];
 }
 
 sub _classify_tokens {
-    my ($tokens) = @_;
+	my ($tokens) = @_;
 
-    my @types;
+	my @types;
 
-    for my $t (@$tokens) {
-        if ($t =~ /^[a-z]$/) {
-            push @types, "initial";
-        }
-        elsif ($SUFFIX{$t}) {
-            push @types, "suffix";
-        }
-        else {
-            push @types, "word";
-        }
-    }
+	for my $t (@$tokens) {
+		if ($t =~ /^[a-z]$/) {
+			push @types, "initial";
+		}
+		elsif ($SUFFIX{$t}) {
+			push @types, "suffix";
+		}
+		else {
+			push @types, "word";
+		}
+	}
 
-    return {
-        tokens => $tokens,
-        types  => \@types,
-    };
+	return {
+		tokens => $tokens,
+		types  => \@types,
+	};
 }
 
 sub _extract_parts {
-    my ($classified) = @_;
+	my ($classified) = @_;
 
-    my @tokens = @{ $classified->{tokens} };
-    my @types  = @{ $classified->{types} };
+	my @tokens = @{ $classified->{tokens} };
+	my @types  = @{ $classified->{types} };
 
-    my (@given, @middle, @surname, @suffix);
+	my (@given, @middle, @surname, @suffix);
 
-    # 1. Peel off suffixes from the end
-    while (@types && $types[-1] eq 'suffix') {
-        unshift @suffix, pop @tokens;
-        pop @types;
-    }
+	# 1. Peel off suffixes from the end
+	while (@types && $types[-1] eq 'suffix') {
+		unshift @suffix, pop @tokens;
+		pop @types;
+	}
 
-    # 2. If no tokens left, return empty structure
-    return {
-        given   => [],
-        middle  => [],
-        surname => [],
-        suffix  => \@suffix,
-    } unless @tokens;
+	# 2. If no tokens left, return empty structure
+	return {
+		given   => [],
+		middle  => [],
+		surname => [],
+		suffix  => \@suffix,
+	} unless @tokens;
 
-    # 3. Surname = last remaining token
-    push @surname, pop @tokens;
-    pop @types;
+	# 3. Surname = last remaining token
+	push @surname, pop @tokens;
+	pop @types;
 
-    # 4. Given = first remaining token (if any)
-    if (@tokens) {
-        push @given, shift @tokens;
-        shift @types;
-    }
+	# 4. Given = first remaining token (if any)
+	if (@tokens) {
+		push @given, shift @tokens;
+		shift @types;
+	}
 
-    # 5. Middle = everything else
-    @middle = @tokens;
+	# 5. Middle = everything else
+	@middle = @tokens;
 
-    return {
-        given   => \@given,
-        middle  => \@middle,
-        surname => \@surname,
-        suffix  => \@suffix,
-    };
+	return {
+		given   => \@given,
+		middle  => \@middle,
+		surname => \@surname,
+		suffix  => \@suffix,
+	};
 }
 
+sub _normalize_string {
+	my ($name, %opts) = @_;
 
+	$name = '' unless defined $name;
+
+	my $norm = NFKC($name);
+
+	# whitespace
+	$norm =~ s/\s+/ /g;
+	$norm =~ s/^\s+//;
+	$norm =~ s/\s+$//;
+
+	# punctuation (basic)
+	$norm =~ s/[.,]+$//;   # strip trailing comma/period
+	$norm =~ s/^[.,]+//;   # strip leading comma/period
+
+	# lowercase
+	$norm = lc $norm;
+
+	# diacritics
+	if ($opts{strip_diacritics}) {
+		my $d = NFD($norm);
+		$d =~ s/\pM//g;
+		$norm = NFC($d);
+	}
+
+	return $norm;
+}
 
 1;
