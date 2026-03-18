@@ -17,6 +17,219 @@ our @EXPORT_OK = qw(
 # Default suffixes used when no rules are provided
 my %DEFAULT_SUFFIX = map { $_ => 1 } qw(jr sr ii iii iv);
 
+=head1 NAME
+
+Text::Names::Canonicalize - Locale-aware personal name canonicalization with YAML rules, inheritance, and user overrides
+
+=head1 SYNOPSIS
+
+  use Text::Names::Canonicalize qw(
+      canonicalize_name
+      canonicalize_name_struct
+  );
+
+  my $canon = canonicalize_name(
+      "Jean d'Ormesson",
+      locale => 'fr_FR',
+  );
+
+  # jean d'ormesson
+
+  my $struct = canonicalize_name_struct(
+      "Karl von der Heide",
+      locale => 'de_DE',
+  );
+
+  # {
+  #   original => "Karl von der Heide",
+  #   locale   => "de_DE",
+  #   parts    => {
+  #       given   => ["karl"],
+  #       surname => ["von der", "heide"],
+  #   },
+  #   canonical => "karl von der heide",
+  # }
+
+=head1 DESCRIPTION
+
+Text::Names::Canonicalize provides a robust, data-driven engine for
+canonicalizing personal names across multiple languages and cultural
+conventions.  It is designed for data cleaning, indexing, matching,
+and normalization tasks where consistent, locale-aware handling of
+names is essential.
+
+The module uses declarative YAML rules for each locale, supports
+inheritance between locale files, detects circular includes, and
+allows users to override or extend rules via configuration files.
+
+A command-line tool C<text-names-canonicalize> is included for
+interactive use.
+
+=head1 FEATURES
+
+=over 4
+
+=item * Locale-aware name canonicalization
+
+=item * YAML-based rule definitions
+
+=item * Inheritance between locale files (C<include:>)
+
+=item * Circular-include detection
+
+=item * User override rules via C<$CONFIG_DIR> or C<~/.config>
+
+=item * Multi-word particle handling (e.g. C<von der>, C<d'>, C<l'>)
+
+=item * Tokenization and surname-strategy engine
+
+=item * CLI tool with C<--explain> and C<--rules>
+
+=back
+
+=head1 FUNCTIONS
+
+=head2 canonicalize_name( $name, %opts )
+
+Returns a canonicalized string form of the name.
+
+  my $canon = canonicalize_name("John Mc Donald", locale => 'en_GB');
+
+Options:
+
+=over 4
+
+=item * C<locale>
+
+Locale code (e.g. C<en_GB>, C<fr_FR>, C<de_DE>).  
+Defaults to C<en_GB>.
+
+=back
+
+=head2 canonicalize_name_struct( $name, %opts )
+
+Returns a structured hashref describing the canonicalization process:
+
+  {
+    original  => "...",
+    locale    => "...",
+    parts     => {
+        given   => [...],
+        surname => [...],
+    },
+    canonical => "...",
+  }
+
+Useful for debugging, testing, and downstream processing.
+
+=head1 LOCALE SYSTEM
+
+Locale rules are stored as YAML files under:
+
+  Text/Names/Canonicalize/Rules/*.yaml
+
+Each file contains one or more rulesets (typically C<default>).
+
+=head2 Inheritance
+
+A ruleset may include one or more parent locales:
+
+  default:
+    include: en_GB
+    particles:
+      - de
+      - du
+
+Parents are merged in order, and child keys override parent keys.
+
+=head2 Circular include detection
+
+Circular include chains (direct or indirect) are detected and reported
+with a clear error message.
+
+=head1 USER OVERRIDES
+
+Users may override or extend locale rules by placing YAML files in:
+
+  $CONFIG_DIR/text-names-canonicalize/rules/*.yaml
+
+or, if C<$CONFIG_DIR> is not set:
+
+  ~/.config/text-names-canonicalize/rules/*.yaml
+
+User rules override built-in rules at the per-ruleset level.
+
+=head1 CLI TOOL
+
+The distribution includes a command-line utility:
+
+  text-names-canonicalize [options] "Full Name"
+
+Options:
+
+  --locale LOCALE     Select locale (default: en_GB)
+  --explain           Dump structured canonicalization
+  --rules             Show resolved ruleset for the locale
+
+Examples:
+
+  text-names-canonicalize "Jean d'Ormesson" --locale fr_FR
+  text-names-canonicalize "Karl von der Heide" --locale de_DE --explain
+  text-names-canonicalize --rules --locale fr_FR
+
+=head1 YAML RULE FORMAT
+
+Each ruleset contains:
+
+=over 4
+
+=item * C<particles> - list of surname particles
+
+=item * C<suffixes> - generational/professional suffixes
+
+=item * C<strip_titles> - titles to remove
+
+=item * C<hyphen_policy> - currently C<preserve>
+
+=item * C<surname_strategy> - e.g. C<last_token_with_particles>
+
+=back
+
+=head1 SUPPORTED LOCALES
+
+=over 4
+
+=item * C<base> - shared Western defaults
+
+=item * C<en_GB> - British English
+
+=item * C<en_US> - American English
+
+=item * C<fr_FR> - French
+
+=item * C<de_DE> - German
+
+=back
+
+Additional locales can be added easily by creating new YAML files.
+
+=head1 EXTENDING
+
+To add a new locale:
+
+  1. Create a YAML file in Rules/
+  2. Optionally inherit from base or another locale
+  3. Add locale-specific particles, titles, or suffixes
+  4. Write tests under t/
+
+To override rules locally:
+
+  mkdir -p ~/.config/text-names-canonicalize/rules
+  cp my_rules.yaml ~/.config/text-names-canonicalize/rules/
+
+=cut
+
+
 # Returns a plain canonical string.
 sub canonicalize_name {
 	my ($name, %opts) = @_;
@@ -224,5 +437,14 @@ sub _join_multiword_particles {
 
 	return @out;
 }
+
+=head1 AUTHOR
+
+Nigel Horne
+
+=head1 LICENSE
+
+This library is free software; you may redistribute it and/or modify
+it under the same terms as Perl itself.
 
 1;
