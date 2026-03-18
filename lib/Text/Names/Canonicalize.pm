@@ -440,11 +440,70 @@ sub _join_multiword_particles {
 
 =head1 AUTHOR
 
-Nigel Horne
+Nigel Horne, C<< <njh at nigelhorne.com> >>
 
-=head1 LICENSE
+=head1 SEE ALSO
 
-This library is free software; you may redistribute it and/or modify
-it under the same terms as Perl itself.
+L<Text::Names::Canonicalize>
+
+=head1 REPOSITORY
+
+L<https://github.com/nigelhorne/Text-Names-Canonicalize>
+
+=head1 SUPPORT
+
+This module is provided as-is without any warranty.
+
+Please report any bugs or feature requests to C<bug-text-names-canonicalize at rt.cpan.org>,
+or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Text-Names-Canonicalize>.
+I will be notified, and then you'll
+automatically be notified of progress on your bug as I make changes.
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc Text::Names::Canonicalize
+
+You can also look for information at:
+
+=over 4
+
+=item * MetaCPAN
+
+L<https://metacpan.org/dist/Text-Names-Canonicalize>
+
+=item * RT: CPAN's request tracker
+
+L<https://rt.cpan.org/NoAuth/Bugs.html?Dist=Text-Names-Canonicalize>
+
+=item * CPAN Testers' Matrix
+
+L<http://matrix.cpantesters.org/?dist=Text-Names-Canonicalize>
+
+=item * CPAN Testers Dependencies
+
+L<http://deps.cpantesters.org/?module=Text::Names::Canonicalize>
+
+=back
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright 2026 Nigel Horne.
+
+Usage is subject to licence terms.
+
+The licence terms of this software are as follows:
+
+=over 4
+
+=item * Personal single user, single computer use: GPL2
+
+=item * All other users (including Commercial, Charity, Educational, Government)
+  must apply in writing for a licence for use from Nigel Horne at the
+  above e-mail.
+
+=back
+
+=cut
 
 1;

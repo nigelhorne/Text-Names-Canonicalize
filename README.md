@@ -179,11 +179,57 @@ To override rules locally:
 
 # AUTHOR
 
-Nigel Horne
+Nigel Horne, `<njh at nigelhorne.com>`
 
-# LICENSE
+# SEE ALSO
 
-This library is free software; you may redistribute it and/or modify
-it under the same terms as Perl itself.
+[Text::Names::Canonicalize](https://metacpan.org/pod/Text%3A%3ANames%3A%3ACanonicalize)
 
-1;
+# REPOSITORY
+
+[https://github.com/nigelhorne/Text-Names-Canonicalize](https://github.com/nigelhorne/Text-Names-Canonicalize)
+
+# SUPPORT
+
+This module is provided as-is without any warranty.
+
+Please report any bugs or feature requests to `bug-text-names-canonicalize at rt.cpan.org`,
+or through the web interface at
+[http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Text-Names-Canonicalize](http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Text-Names-Canonicalize).
+I will be notified, and then you'll
+automatically be notified of progress on your bug as I make changes.
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc Text::Names::Canonicalize
+
+You can also look for information at:
+
+- MetaCPAN
+
+    [https://metacpan.org/dist/Text-Names-Canonicalize](https://metacpan.org/dist/Text-Names-Canonicalize)
+
+- RT: CPAN's request tracker
+
+    [https://rt.cpan.org/NoAuth/Bugs.html?Dist=Text-Names-Canonicalize](https://rt.cpan.org/NoAuth/Bugs.html?Dist=Text-Names-Canonicalize)
+
+- CPAN Testers' Matrix
+
+    [http://matrix.cpantesters.org/?dist=Text-Names-Canonicalize](http://matrix.cpantesters.org/?dist=Text-Names-Canonicalize)
+
+- CPAN Testers Dependencies
+
+    [http://deps.cpantesters.org/?module=Text::Names::Canonicalize](http://deps.cpantesters.org/?module=Text::Names::Canonicalize)
+
+# LICENCE AND COPYRIGHT
+
+Copyright 2026 Nigel Horne.
+
+Usage is subject to licence terms.
+
+The licence terms of this software are as follows:
+
+- Personal single user, single computer use: GPL2
+- All other users (including Commercial, Charity, Educational, Government)
+  must apply in writing for a licence for use from Nigel Horne at the
+  above e-mail.
