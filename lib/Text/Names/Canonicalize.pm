@@ -2,11 +2,13 @@ package Text::Names::Canonicalize;
 
 use strict;
 use warnings;
-    use Encode qw(decode);
 use Exporter qw(import);
 use Unicode::Normalize qw(NFKC NFD NFC);
+use feature 'unicode_strings';
+use charnames qw(:full);
 
 our @EXPORT_OK = qw(canonicalize_name);
+
 
 sub canonicalize_name {
     my ($name, %opts) = @_;
@@ -45,8 +47,30 @@ if ($opts{strip_diacritics}) {
     $norm = NFC($decomp);
 }
     
+	return wantarray ? ($norm, _tokenize($norm)) : $norm;
+}
 
-    return $norm;
+sub _tokenize {
+    my ($norm) = @_;
+
+    my @t = split / /, $norm;
+
+    for (@t) {
+        # strip leading/trailing punctuation
+        s/^\pP+//;
+        s/\pP+$//;
+
+        # normalize apostrophes: curly quotes → ASCII '
+        s/[\N{LEFT SINGLE QUOTATION MARK}\N{RIGHT SINGLE QUOTATION MARK}]/'/g;
+
+        # normalize all dash-like characters to ASCII hyphen
+        s/\p{Dash}/-/g;
+
+        # trailing period (initials)
+        s/\.$//;
+    }
+
+    return [ grep { length } @t ];
 }
 
 1;
