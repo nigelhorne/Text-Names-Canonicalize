@@ -97,5 +97,49 @@ sub _classify_tokens {
     };
 }
 
+sub _extract_parts {
+    my ($classified) = @_;
+
+    my @tokens = @{ $classified->{tokens} };
+    my @types  = @{ $classified->{types} };
+
+    my (@given, @middle, @surname, @suffix);
+
+    # 1. Peel off suffixes from the end
+    while (@types && $types[-1] eq 'suffix') {
+        unshift @suffix, pop @tokens;
+        pop @types;
+    }
+
+    # 2. If no tokens left, return empty structure
+    return {
+        given   => [],
+        middle  => [],
+        surname => [],
+        suffix  => \@suffix,
+    } unless @tokens;
+
+    # 3. Surname = last remaining token
+    push @surname, pop @tokens;
+    pop @types;
+
+    # 4. Given = first remaining token (if any)
+    if (@tokens) {
+        push @given, shift @tokens;
+        shift @types;
+    }
+
+    # 5. Middle = everything else
+    @middle = @tokens;
+
+    return {
+        given   => \@given,
+        middle  => \@middle,
+        surname => \@surname,
+        suffix  => \@suffix,
+    };
+}
+
+
 
 1;
