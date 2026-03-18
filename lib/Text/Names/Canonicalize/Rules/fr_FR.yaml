@@ -15,15 +15,11 @@
 #   - Hyphenated given names (Jean‑Luc, Marie‑Claire) are common.
 #   - Suffixes are rare in French naming; we keep the minimal English list.
 #   - Titles such as "M.", "Mme", "Mlle" should be stripped.
-#
-# This ruleset inherits from en_GB and overrides only the differences.
 
 default:
 
-  # Inherit UK rules (hyphens, surname strategy, suffixes, etc.)
-  include: en_GB
+  include: base
 
-  # French surname particles.
   particles:
     - de
     - du
@@ -33,7 +29,6 @@ default:
     - "d'"
     - "l'"
 
-  # French titles to strip.
   strip_titles:
     - mr
     - mme

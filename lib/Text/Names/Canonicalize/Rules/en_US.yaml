@@ -11,13 +11,10 @@
 
 default:
 
-  # Inherit all UK rules (titles, hyphens, surname strategy, etc.)
   include: en_GB
 
-  # US naming does not use particles.
   particles: []
 
-  # US suffixes include professional and generational markers.
   suffixes:
     - jr
     - sr
@@ -28,7 +25,6 @@ default:
     - md
     - phd
 
-  # US titles to strip (adds Rev, Hon).
   strip_titles:
     - mr
     - mrs

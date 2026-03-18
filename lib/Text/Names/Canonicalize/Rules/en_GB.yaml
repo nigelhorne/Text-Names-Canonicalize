@@ -1,6 +1,8 @@
 ---
 # English (United Kingdom) name canonicalization rules
 #
+# UK-specific overrides on top of base Western naming conventions.
+#
 # Notes:
 #   - UK names rarely use particles (unlike French, Dutch, German).
 #   - Hyphenated given names and surnames are common and should be preserved.
@@ -10,32 +12,20 @@
 
 default:
 
-  # No surname particles in standard UK naming.
-  particles: []
+  include: base
 
-  # Common UK suffixes.
-  suffixes:
-    - jr
-    - sr
-    - ii
-    - iii
-    - iv
-
-  # Titles to strip from the beginning of the name.
+  # UK titles not present in base.
   strip_titles:
     - mr
     - mrs
     - miss
     - ms
-    - sir
-    - dame
     - dr
     - prof
+    - sir
+    - dame
     - lord
     - lady
 
-  # Preserve hyphens in given names and surnames.
-  hyphen_policy: preserve
-
-  # UK surnames are typically the last token.
-  surname_strategy: last_token_with_particles
+  # UK has no surname particles.
+  particles: []

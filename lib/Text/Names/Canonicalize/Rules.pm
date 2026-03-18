@@ -107,34 +107,47 @@ sub _merge_rules {
 }
 
 sub _resolve_includes {
-	my ($locale, $ruleset, $yaml) = @_;
-	return $yaml unless $yaml;  # nothing to do
+    my ($locale, $ruleset, $yaml, $seen) = @_;
+    return $yaml unless $yaml;
 
-	my $spec = $yaml->{$ruleset}
-		or return $yaml;  # nothing to resolve
+    $seen ||= {};
 
-	my @parents;
-	if (exists $spec->{include}) {
-		my $inc = $spec->{include};
+    my $spec = $yaml->{$ruleset}
+        or return $yaml;
 
-		@parents =
-			ref $inc eq 'ARRAY' ? @$inc :
-			ref $inc eq ''	   ? ($inc) :
-			croak "Invalid include format in $locale/$ruleset";
-	}
+    my @parents;
+    if (exists $spec->{include}) {
+        my $inc = $spec->{include};
 
-	delete $spec->{include};
+        @parents =
+            ref $inc eq 'ARRAY' ? @$inc :
+            ref $inc eq ''       ? ($inc) :
+            croak "Invalid include format in $locale/$ruleset";
+    }
 
-	for my $parent (@parents) {
-		my $parent_yaml = _load_yaml_rules($parent) or croak "Included locale '$parent' not found";
+    delete $spec->{include};
 
-		my $parent_rules = $parent_yaml->{$ruleset} or croak "Included ruleset '$ruleset' not found in '$parent'";
+    for my $parent (@parents) {
 
-		$spec = _merge_rules($parent_rules, $spec);
-	}
+        # CIRCULAR INCLUDE DETECTION
+        croak "Circular include detected: $locale → $parent"
+            if $seen->{$parent};
 
-	$yaml->{$ruleset} = $spec;
-	return $yaml;
+        $seen->{$parent} = 1;
+
+        my $parent_yaml = _load_yaml_rules($parent)
+            or croak "Included locale '$parent' not found";
+
+        $parent_yaml = _resolve_includes($parent, $ruleset, $parent_yaml, $seen);
+
+        my $parent_rules = $parent_yaml->{$ruleset}
+            or croak "Included ruleset '$ruleset' not found in '$parent'";
+
+        $spec = _merge_rules($parent_rules, $spec);
+    }
+
+    $yaml->{$ruleset} = $spec;
+    return $yaml;
 }
 
 1;

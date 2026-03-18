@@ -14,10 +14,8 @@
 
 default:
 
-  # Inherit from en_GB (titles, suffixes, hyphen policy)
-  include: en_GB
+  include: base
 
-  # Override particles
   particles:
     - von
     - vom
@@ -26,6 +24,3 @@ default:
     - zu
     - zur
     - zum
-
-  # German surname strategy is the same as French
-  surname_strategy: last_token_with_particles
