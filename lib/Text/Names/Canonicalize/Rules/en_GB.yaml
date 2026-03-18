@@ -1,3 +1,4 @@
+---
 # English (United Kingdom) name canonicalization rules
 #
 # Notes:
@@ -38,4 +39,3 @@ default:
 
   # UK surnames are typically the last token.
   surname_strategy: last_token_with_particles
-
