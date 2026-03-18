@@ -12,7 +12,6 @@ our @EXPORT_OK = qw(
 	canonicalize_name_struct
 );
 
-
 my %SUFFIX = map { $_ => 1 } qw(jr sr ii iii iv);
 
 BEGIN {
@@ -21,12 +20,13 @@ BEGIN {
 	Text::Names::Canonicalize::Rules->register(
 		'en_GB',
 		'default',
-		{
-			particles => [],
-			suffixes  => [qw(jr sr ii iii iv)],
-			strip_titles => [qw(mr mrs miss ms sir dame dr prof lord lady)],
-			hyphen_policy => 'preserve',
-		}
+{
+    particles    => [],
+    suffixes     => [qw(jr sr ii iii iv)],
+    strip_titles => [qw(mr mrs miss ms sir dame dr prof lord lady)],
+    hyphen_policy => 'preserve',
+    surname_strategy => 'last_token_with_particles',
+}
 	);
 }
 
@@ -59,8 +59,8 @@ sub canonicalize_name_struct {
 	# 4. Classify
 	my $classified = _classify_tokens($tokens);
 
-	# 5. Extract parts (still locale-neutral)
-	my $parts = _extract_parts($classified);
+	# 5. Extract parts
+	my $parts = _extract_parts($classified, $rules);
 
 	return {
 		original  => (defined $name ? $name : ''),
@@ -118,46 +118,65 @@ sub _classify_tokens {
 }
 
 sub _extract_parts {
-	my ($classified) = @_;
+    my ($classified, $rules) = @_;
 
-	my @tokens = @{ $classified->{tokens} };
-	my @types  = @{ $classified->{types} };
+    my @tokens = @{ $classified->{tokens} };
+    my @types  = @{ $classified->{types} };
 
-	my (@given, @middle, @surname, @suffix);
+    my %particle = map { $_ => 1 } @{ $rules->{particles} || [] };
 
-	# 1. Peel off suffixes from the end
-	while (@types && $types[-1] eq 'suffix') {
-		unshift @suffix, pop @tokens;
-		pop @types;
-	}
+    my (@given, @middle, @surname, @suffix);
 
-	# 2. If no tokens left, return empty structure
-	return {
-		given   => [],
-		middle  => [],
-		surname => [],
-		suffix  => \@suffix,
-	} unless @tokens;
+    # 1. Peel off suffixes
+    while (@types && $types[-1] eq 'suffix') {
+        unshift @suffix, pop @tokens;
+        pop @types;
+    }
 
-	# 3. Surname = last remaining token
-	push @surname, pop @tokens;
-	pop @types;
+    # If nothing left, return empty structure
+    return {
+        given   => [],
+        middle  => [],
+        surname => [],
+        suffix  => \@suffix,
+    } unless @tokens;
 
-	# 4. Given = first remaining token (if any)
-	if (@tokens) {
-		push @given, shift @tokens;
-		shift @types;
-	}
+    # 2. Locale-aware surname extraction
+    if ($rules->{surname_strategy} && $rules->{surname_strategy} eq 'last_token_with_particles') {
 
-	# 5. Middle = everything else
-	@middle = @tokens;
+        # Always take the last token as surname root
+        my $root = pop @tokens;
+        pop @types;
+        unshift @surname, $root;
 
-	return {
-		given   => \@given,
-		middle  => \@middle,
-		surname => \@surname,
-		suffix  => \@suffix,
-	};
+        # Pull in particles from the end backwards
+        while (@tokens && $particle{$tokens[-1]}) {
+            unshift @surname, pop @tokens;
+            pop @types;
+        }
+
+    } else {
+        # Fallback: simple last token
+        my $root = pop @tokens;
+        pop @types;
+        unshift @surname, $root;
+    }
+
+    # 3. Given = first token (if any)
+    if (@tokens) {
+        push @given, shift @tokens;
+        shift @types;
+    }
+
+    # 4. Middle = everything else
+    @middle = @tokens;
+
+    return {
+        given   => \@given,
+        middle  => \@middle,
+        surname => \@surname,
+        suffix  => \@suffix,
+    };
 }
 
 sub _normalize_string {
