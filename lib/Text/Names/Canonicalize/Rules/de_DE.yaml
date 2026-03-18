@@ -1,0 +1,31 @@
+---
+# German (Germany) name canonicalization rules
+#
+# Notes:
+#   - German surnames frequently include particles:
+#         von, vom, von der, von dem, zu, zur, zum
+#   - Multi-word particles must be treated as a single surname unit.
+#   - Examples:
+#         Otto von Bismarck        → ["von", "bismarck"]
+#         Ludwig van Beethoven     → ["van", "beethoven"]  (Dutch particle)
+#         Karl von der Heide       → ["von der", "heide"]
+#   - Hyphens are preserved.
+#   - Titles are similar to English.
+
+default:
+
+  # Inherit from en_GB (titles, suffixes, hyphen policy)
+  include: en_GB
+
+  # Override particles
+  particles:
+    - von
+    - vom
+    - "von der"
+    - "von dem"
+    - zu
+    - zur
+    - zum
+
+  # German surname strategy is the same as French
+  surname_strategy: last_token_with_particles

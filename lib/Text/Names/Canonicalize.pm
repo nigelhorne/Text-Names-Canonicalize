@@ -74,6 +74,9 @@ sub _tokenize {
 
 	my @t = split / /, $norm;
 
+	# Join multi-word particles (e.g., "von der")
+	@t = _join_multiword_particles(@t);
+
 	for (@t) {
 		s/^\pP+//;				 # leading punctuation
 		s/[\pP&&[^']]+$//;		 # trailing punctuation except apostrophe
@@ -82,8 +85,6 @@ sub _tokenize {
 
 	return [ grep { length } @t ];
 }
-
-
 
 sub _classify_tokens {
 	my ($tokens, $rules) = @_;
@@ -204,6 +205,24 @@ sub _normalize_string {
 	}
 
 	return $norm;
+}
+
+sub _join_multiword_particles {
+	my @t = @_;
+	my @out;
+
+	while (@t) {
+		my $w = shift @t;
+
+		# Try 2-word particles
+		if (@t && "$w $t[0]" =~ /^(von der|von dem)$/) {
+			$w = "$w " . shift @t;
+		}
+
+		push @out, $w;
+	}
+
+	return @out;
 }
 
 1;

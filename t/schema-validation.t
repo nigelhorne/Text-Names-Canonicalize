@@ -15,7 +15,7 @@ opendir my $dh, $rules_dir or die "Cannot open $rules_dir: $!";
 my @yaml_files = grep { /\.yaml$/ } readdir $dh;
 closedir $dh;
 
-# Required keys for each ruleset
+# Required keys for a *fully resolved* ruleset
 my @required_keys = qw(
     particles
     suffixes
@@ -24,8 +24,11 @@ my @required_keys = qw(
     surname_strategy
 );
 
-# Allowed keys (for future extensibility)
-my %allowed = map { $_ => 1 } @required_keys;
+# Allowed keys in a *raw* YAML ruleset
+my %allowed = map { $_ => 1 } (
+    @required_keys,
+    'include',      # NEW
+);
 
 foreach my $file (@yaml_files) {
     my $path = File::Spec->catfile($rules_dir, $file);
@@ -42,22 +45,37 @@ foreach my $file (@yaml_files) {
 
         ok(ref $rules eq 'HASH', "Ruleset '$ruleset' is a hash");
 
-        # Check required keys
-        foreach my $key (@required_keys) {
-            ok(exists $rules->{$key}, "$file/$ruleset has key '$key'");
-        }
-
         # Check for unknown keys
         foreach my $key (keys %$rules) {
             ok($allowed{$key}, "$file/$ruleset key '$key' is allowed");
         }
 
-        # Type checks
-        ok(ref $rules->{particles} eq 'ARRAY', "particles is array");
-        ok(ref $rules->{suffixes} eq 'ARRAY', "suffixes is array");
-        ok(ref $rules->{strip_titles} eq 'ARRAY', "strip_titles is array");
-        ok(!ref $rules->{hyphen_policy}, "hyphen_policy is scalar");
-        ok(!ref $rules->{surname_strategy}, "surname_strategy is scalar");
+        # If include is present, skip required-key checks
+        if (exists $rules->{include}) {
+            ok(1, "$file/$ruleset uses include, skipping required-key checks");
+            next;
+        }
+
+        # Otherwise, enforce required keys
+        foreach my $key (@required_keys) {
+            ok(exists $rules->{$key}, "$file/$ruleset has key '$key'");
+        }
+
+        # Type checks (only for present keys)
+        ok(!ref $rules->{hyphen_policy}, "hyphen_policy is scalar")
+            if exists $rules->{hyphen_policy};
+
+        ok(!ref $rules->{surname_strategy}, "surname_strategy is scalar")
+            if exists $rules->{surname_strategy};
+
+        ok(ref $rules->{particles} eq 'ARRAY', "particles is array")
+            if exists $rules->{particles};
+
+        ok(ref $rules->{suffixes} eq 'ARRAY', "suffixes is array")
+            if exists $rules->{suffixes};
+
+        ok(ref $rules->{strip_titles} eq 'ARRAY', "strip_titles is array")
+            if exists $rules->{strip_titles};
     }
 }
 

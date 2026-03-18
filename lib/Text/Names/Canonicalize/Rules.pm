@@ -13,7 +13,7 @@ use File::Basename qw(dirname);
 #   lib/Text/Names/Canonicalize/Rules/<locale>.yaml
 # ----------------------------------------------------------------------
 sub _load_yaml_rules {
-    my ($locale) = @_;
+	my ($locale) = @_;
 
 # __FILE__ = .../Text/Names/Canonicalize/Rules.pm
 # YAML lives in .../Text/Names/Canonicalize/Rules/*.yaml
@@ -21,14 +21,14 @@ sub _load_yaml_rules {
 my $base = File::Spec->catdir( dirname(__FILE__), 'Rules' );
 my $file = File::Spec->catfile( $base, "$locale.yaml" );
 
-    return unless -e $file;
+	return unless -e $file;
 
-    my $yaml = eval { LoadFile($file) };
-    croak "Failed to load YAML rules for $locale: $@" if $@;
+	my $yaml = eval { LoadFile($file) };
+	croak "Failed to load YAML rules for $locale: $@" if $@;
 
-    croak "YAML rules for $locale must be a hash" unless ref $yaml eq 'HASH';
+	croak "YAML rules for $locale must be a hash" unless ref $yaml eq 'HASH';
 
-    return $yaml;
+	return $yaml;
 }
 
 # ----------------------------------------------------------------------
@@ -37,76 +37,104 @@ my $file = File::Spec->catfile( $base, "$locale.yaml" );
 #   2. Fall back to Perl registry
 # ----------------------------------------------------------------------
 sub get {
-    my ($class, $locale, $ruleset) = @_;
-    $ruleset ||= 'default';
+	my ($class, $locale, $ruleset) = @_;
+	$ruleset ||= 'default';
 
-    # Load built-in YAML
-    my $builtin = _load_yaml_rules($locale);
+	# Built-in YAML (may be undef)
+	my $builtin = _load_yaml_rules($locale);
+	$builtin = _resolve_includes($locale, $ruleset, $builtin) if $builtin;
 
-    # Load user override YAML
-    my $user = _load_user_yaml_rules($locale);
+	# User override YAML (may be undef)
+	my $user = _load_user_yaml_rules($locale);
+	$user = _resolve_includes($locale, $ruleset, $user) if $user;
 
-    # If neither exists → error
-    croak "No rules found for locale '$locale'"
-        unless $builtin || $user;
+	# Extract rulesets
+	my $builtin_rules = $builtin ? $builtin->{$ruleset} : undef;
+	my $user_rules	= $user	? $user->{$ruleset}	: undef;
 
-    # Extract ruleset from each
-    my $builtin_rules = $builtin ? $builtin->{$ruleset} : {};
-    my $user_rules    = $user    ? $user->{$ruleset}    : {};
+	croak "Ruleset '$ruleset' not found for locale '$locale'"
+		unless $builtin_rules || $user_rules;
 
-    croak "Ruleset '$ruleset' not found for locale '$locale'"
-        unless $builtin_rules || $user_rules;
+	# Merge: user overrides built-in
+	my $merged = _merge_rules($builtin_rules || {}, $user_rules || {});
 
-    # Merge: user overrides built-in
-    return _merge_rules($builtin_rules || {}, $user_rules || {});
+	return $merged;
 }
-
 
 sub _user_rules_dir {
 
-    # If CONFIG_DIR is set, use:
-    #   $CONFIG_DIR/text-names-canonicalize/rules
-    if ($ENV{CONFIG_DIR}) {
-        return File::Spec->catdir(
-            $ENV{CONFIG_DIR},
-            'text-names-canonicalize',
-            'rules'
-        );
-    }
+	# If CONFIG_DIR is set, use:
+	#   $CONFIG_DIR/text-names-canonicalize/rules
+	if ($ENV{CONFIG_DIR}) {
+		return File::Spec->catdir(
+			$ENV{CONFIG_DIR},
+			'text-names-canonicalize',
+			'rules'
+		);
+	}
 
-    # Otherwise use:
-    #   ~/.config/text-names-canonicalize/rules
-    my $home = $ENV{HOME} or return;
-    return File::Spec->catdir(
-        $home,
-        '.config',
-        'text-names-canonicalize',
-        'rules'
-    );
+	# Otherwise use:
+	#   ~/.config/text-names-canonicalize/rules
+	my $home = $ENV{HOME} or return;
+	return File::Spec->catdir(
+		$home,
+		'.config',
+		'text-names-canonicalize',
+		'rules'
+	);
 }
 
 sub _load_user_yaml_rules {
-    my ($locale) = @_;
+	my ($locale) = @_;
 
-    my $dir = _user_rules_dir() or return;
-    my $file = File::Spec->catfile($dir, "$locale.yaml");
+	my $dir = _user_rules_dir() or return;
+	my $file = File::Spec->catfile($dir, "$locale.yaml");
 
-    return unless -e $file;
+	return unless -e $file;
 
-    my $yaml = eval { LoadFile($file) };
-    croak "Failed to load user YAML rules for $locale: $@" if $@;
+	my $yaml = eval { LoadFile($file) };
+	croak "Failed to load user YAML rules for $locale: $@" if $@;
 
-    return $yaml;
+	return $yaml;
 }
 
 sub _merge_rules {
-    my ($base, $override) = @_;
-    return $base unless $override;
+	my ($base, $override) = @_;
+	return $base unless $override;
 
-    my %merged = (%$base, %$override);
-    return \%merged;
+	my %merged = (%$base, %$override);
+	return \%merged;
 }
 
+sub _resolve_includes {
+	my ($locale, $ruleset, $yaml) = @_;
+	return $yaml unless $yaml;  # nothing to do
 
+	my $spec = $yaml->{$ruleset}
+		or return $yaml;  # nothing to resolve
+
+	my @parents;
+	if (exists $spec->{include}) {
+		my $inc = $spec->{include};
+
+		@parents =
+			ref $inc eq 'ARRAY' ? @$inc :
+			ref $inc eq ''	   ? ($inc) :
+			croak "Invalid include format in $locale/$ruleset";
+	}
+
+	delete $spec->{include};
+
+	for my $parent (@parents) {
+		my $parent_yaml = _load_yaml_rules($parent) or croak "Included locale '$parent' not found";
+
+		my $parent_rules = $parent_yaml->{$ruleset} or croak "Included ruleset '$ruleset' not found in '$parent'";
+
+		$spec = _merge_rules($parent_rules, $spec);
+	}
+
+	$yaml->{$ruleset} = $spec;
+	return $yaml;
+}
 
 1;
