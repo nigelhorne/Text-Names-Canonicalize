@@ -9,6 +9,7 @@ use charnames qw(:full);
 
 our @EXPORT_OK = qw(canonicalize_name);
 
+my %SUFFIX = map { $_ => 1 } qw(jr sr ii iii iv);
 
 sub canonicalize_name {
     my ($name, %opts) = @_;
@@ -72,5 +73,29 @@ sub _tokenize {
 
     return [ grep { length } @t ];
 }
+
+sub _classify_tokens {
+    my ($tokens) = @_;
+
+    my @types;
+
+    for my $t (@$tokens) {
+        if ($t =~ /^[a-z]$/) {
+            push @types, "initial";
+        }
+        elsif ($SUFFIX{$t}) {
+            push @types, "suffix";
+        }
+        else {
+            push @types, "word";
+        }
+    }
+
+    return {
+        tokens => $tokens,
+        types  => \@types,
+    };
+}
+
 
 1;
