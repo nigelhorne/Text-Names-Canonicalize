@@ -21,6 +21,15 @@ my %DEFAULT_SUFFIX = map { $_ => 1 } qw(jr sr ii iii iv);
 
 Text::Names::Canonicalize - Locale-aware personal name canonicalization with YAML rules, inheritance, and user overrides
 
+
+=head1 VERSION
+
+Version 0.01
+
+=cut
+
+our $VERSION = '0.01';
+
 =head1 SYNOPSIS
 
   use Text::Names::Canonicalize qw(
