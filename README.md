@@ -69,7 +69,7 @@ Options:
 
 - `locale`
 
-    Locale code (e.g. `en_GB`, `fr_FR`, `de_DE`).  
+    Locale code (e.g. `en_GB`, `fr_FR`, `de_DE`).
     Defaults to `en_GB`.
 
 ## canonicalize\_name\_struct( $name, %opts )
