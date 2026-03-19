@@ -101,7 +101,7 @@ Options:
 
 =item * C<locale>
 
-Locale code (e.g. C<en_GB>, C<fr_FR>, C<de_DE>).  
+Locale code (e.g. C<en_GB>, C<fr_FR>, C<de_DE>).
 Defaults to C<en_GB>.
 
 =back
